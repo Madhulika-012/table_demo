@@ -105,10 +105,20 @@
         color: var(--header-text);
         font-weight: 600;
         z-index: 5;
+        padding: 10px; /* keep */
       }
 
-      th span {
-        vertical-align: middle;
+      /* Make header content a flex row: title left, icon pinned right */
+      .th-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between; /* pushes icon to far right */
+        gap: 10px;
+        width: 100%;
+      }
+
+      .th-label {
+        min-width: 0; /* allows label to shrink if needed */
       }
 
       /* ───────────── REMOVE ROW HOVER COLOR ───────────── */
@@ -126,7 +136,6 @@
 
       /* ───────────── Filter Icon (3-line filter icon) ───────────── */
       .filter-icon {
-        margin-left: 10px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -136,6 +145,7 @@
         opacity: 0.9;
         padding: 2px;
         border-radius: 6px;
+        flex: 0 0 auto; /* don't shrink */
       }
 
       .filter-icon:hover {
@@ -187,19 +197,19 @@
 
       /* ───────────── FULL CELL RISK COLORS (severity) ───────────── */
       .td-risk-low {
-        background: #ecfdf5 !important; /* green-ish */
+        background: #ecfdf5 !important;
         color: #065f46;
         font-weight: 600;
       }
 
       .td-risk-medium {
-        background: #fffbeb !important; /* amber-ish */
+        background: #fffbeb !important;
         color: #92400e;
         font-weight: 600;
       }
 
       .td-risk-high {
-        background: #fef2f2 !important; /* red-ish */
+        background: #fef2f2 !important;
         color: #991b1b;
         font-weight: 600;
       }
