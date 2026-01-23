@@ -94,6 +94,8 @@
         border-bottom: 1px solid var(--border);
         text-align: left;
         vertical-align: top;
+
+        /* keep for BODY CELLS behavior */
         word-break: break-word;
       }
 
@@ -109,8 +111,10 @@
         /* default padding for ALL headers */
         padding: 10px;
 
-        /* keep plain (non-filter) header text on one line */
+        /* ✅ heading should not wrap/break words */
         white-space: nowrap;
+        word-break: normal;     /* overrides break-word from th,td */
+        overflow-wrap: normal;  /* overrides breaking inside words */
       }
 
       /* Only filter headers have .th-content wrapper:
@@ -128,13 +132,17 @@
         padding: 10px; /* re-add padding inside wrapper */
       }
 
-      /* Prevent wrapping for filter header labels (fixes "Sev erity") */
+      /* Prevent breaking in filter header labels (extra safety) */
       .th-label {
         flex: 1 1 auto;
         min-width: 0;
+
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+
+        word-break: normal;
+        overflow-wrap: normal;
       }
 
       /* ───────────── REMOVE ROW HOVER COLOR ───────────── */
