@@ -41,12 +41,71 @@ function applyFilters() {
   renderTable();
 }
 
-/* Word count helper for tooltip/ellipsis rule */
 function countWords(value) {
   const text = String(value ?? "").trim();
   if (!text) return 0;
   return text.split(/\s+/).filter(Boolean).length;
 }
+
+/* ───────── Custom Tooltip ───────── */
+const tooltipEl = document.getElementById("tooltip");
+
+function hideTooltip() {
+  if (!tooltipEl) return;
+  tooltipEl.classList.remove("show");
+  tooltipEl.setAttribute("aria-hidden", "true");
+}
+
+function showTooltip(anchorEl, text) {
+  if (!tooltipEl) return;
+
+  tooltipEl.textContent = text;
+
+  // Make visible so we can measure size
+  tooltipEl.classList.add("show");
+  tooltipEl.setAttribute("aria-hidden", "false");
+
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const tipRect = tooltipEl.getBoundingClientRect();
+  const pad = 10;
+
+  // Center tooltip under the text like screenshot
+  let left = anchorRect.left + anchorRect.width / 2 - tipRect.width / 2;
+  left = Math.max(pad, Math.min(left, window.innerWidth - tipRect.width - pad));
+
+  let top = anchorRect.bottom + 10;
+
+  // If would overflow bottom, flip above
+  if (top + tipRect.height + pad > window.innerHeight) {
+    top = anchorRect.top - tipRect.height - 10;
+
+    // move arrow to bottom if flipped
+    tooltipEl.style.setProperty("--arrow-top", "auto");
+  }
+
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top = `${top}px`;
+
+  // Position arrow to visually point near cell center (clamped)
+  const centerX = anchorRect.left + anchorRect.width / 2;
+  const arrowLeft = Math.max(
+    16,
+    Math.min(centerX - left, tipRect.width - 16)
+  );
+  tooltipEl.style.setProperty("--arrow-left", `${arrowLeft}px`);
+}
+
+/* Use CSS variables to place arrow precisely */
+(function injectArrowPositionCSS() {
+  const style = document.createElement("style");
+  style.textContent = `
+    .custom-tooltip::after{
+      left: var(--arrow-left, 50%) !important;
+      transform: translateX(-50%);
+    }
+  `;
+  document.head.appendChild(style);
+})();
 
 /* ───────── Render ───────── */
 function renderTable() {
@@ -54,6 +113,8 @@ function renderTable() {
   if (!root) return;
 
   root.innerHTML = "";
+  hideTooltip();
+  closeAllDropdowns();
 
   const table = document.createElement("table");
 
@@ -79,10 +140,7 @@ function renderTable() {
         const dropdown = document.createElement("div");
         dropdown.className = "filter-dropdown";
 
-        const header = document.createElement("div");
-        header.className = "filter-dropdown-header";
-        header.textContent = `Filter by ${col.label}`;
-        dropdown.appendChild(header);
+        // "Filter by ..." line removed: we do NOT add a header div
 
         const all = document.createElement("div");
         all.className = "filter-option";
@@ -112,21 +170,26 @@ function renderTable() {
           dropdown.appendChild(opt);
         });
 
-        // Attach dropdown to body so it can float above sticky header/table container
         document.body.appendChild(dropdown);
 
-        // Position dropdown under the filter icon
+        // Position dropdown near icon
         const rect = icon.getBoundingClientRect();
-        const gap = 6;
+        const gap = 8;
 
-        dropdown.style.left = `${Math.min(
+        // Temporarily force layout for accurate width
+        const ddRect = dropdown.getBoundingClientRect();
+
+        const left = Math.min(
           rect.left,
-          window.innerWidth - dropdown.offsetWidth - 8
-        )}px`;
-        dropdown.style.top = `${Math.min(
+          window.innerWidth - ddRect.width - 10
+        );
+        const top = Math.min(
           rect.bottom + gap,
-          window.innerHeight - dropdown.offsetHeight - 8
-        )}px`;
+          window.innerHeight - ddRect.height - 10
+        );
+
+        dropdown.style.left = `${Math.max(10, left)}px`;
+        dropdown.style.top = `${Math.max(10, top)}px`;
       };
 
       th.appendChild(label);
@@ -151,18 +214,20 @@ function renderTable() {
       const td = document.createElement("td");
       const value = row[col.key] ?? "";
 
-      // Severity / Likelihood with risk coloring
       if (col.key === "severity" || col.key === "likelihood") {
         td.textContent = String(value);
         td.className = getRiskClass(value);
       } else {
         const text = String(value);
 
-        // If text has more than 6 words, truncate with CSS and add tooltip
+        // Truncate if > 6 words, and use custom tooltip like screenshot
         if (countWords(text) > 6) {
           td.textContent = text;
-          td.classList.add("td-truncate"); // relies on CSS .td-truncate
-          td.title = text;                 // native tooltip
+          td.classList.add("td-truncate");
+
+          td.addEventListener("mouseenter", () => showTooltip(td, text));
+          td.addEventListener("mouseleave", hideTooltip);
+          td.addEventListener("mousemove", () => showTooltip(td, text));
         } else {
           td.textContent = text;
         }
@@ -180,11 +245,16 @@ function renderTable() {
 
 /* ───────── Init ───────── */
 document.addEventListener("DOMContentLoaded", () => {
-  // Render fallback until real payload arrives
   renderTable();
 });
 
-document.addEventListener("click", closeAllDropdowns);
+document.addEventListener("click", () => {
+  closeAllDropdowns();
+  hideTooltip();
+});
+
+window.addEventListener("scroll", hideTooltip, true);
+window.addEventListener("resize", hideTooltip);
 
 /* ───────── Agent Payload ───────── */
 window.addEventListener("message", event => {
