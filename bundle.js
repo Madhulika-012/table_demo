@@ -8,10 +8,11 @@ let originalData = fallback;
 let filteredRows = fallback.rows;
 let activeFilters = {};
 
-/* Columns with dropdown filters */
+/* Columns with dropdown filters (added severity) */
 const FILTERABLE_COLUMNS = {
   risk_type: true,
-  responsible_department: true
+  responsible_department: true,
+  severity: true
 };
 
 /* ───────── Helpers ───────── */
@@ -19,13 +20,49 @@ function getUniqueValues(rows, key) {
   return [...new Set(rows.map(r => r[key]).filter(Boolean))];
 }
 
-function getRiskClass(text = "") {
-  const match = String(text).match(/\b([1-5])\b/);
-  if (!match) return "";
-  const score = Number(match[1]);
-  if (score <= 2) return "td-risk-low";
-  if (score === 3) return "td-risk-medium";
+/**
+ * Severity coloring:
+ * - accepts "High/Medium/Low" (case-insensitive)
+ * - also supports numeric 1–5 mapping:
+ *    1–2 => Low (green)
+ *    3   => Medium (amber)
+ *    4–5 => High (red)
+ */
+function getRiskClass(value = "") {
+  const v = String(value ?? "").trim().toLowerCase();
+
+  if (v === "high") return "td-risk-high";
+  if (v === "medium") return "td-risk-medium";
+  if (v === "low") return "td-risk-low";
+
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "";
+
+  if (n <= 2) return "td-risk-low";
+  if (n === 3) return "td-risk-medium";
   return "td-risk-high";
+}
+
+/**
+ * Normalize severity value for filtering so that:
+ * - "High"/"high" => "High"
+ * - "Medium"/"medium" => "Medium"
+ * - "Low"/"low" => "Low"
+ * - numeric 1–2 => "Low", 3 => "Medium", 4–5 => "High"
+ */
+function normalizeSeverity(value = "") {
+  const v = String(value ?? "").trim().toLowerCase();
+
+  if (v === "high") return "High";
+  if (v === "medium") return "Medium";
+  if (v === "low") return "Low";
+
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(value ?? "").trim();
+
+  if (n <= 2) return "Low";
+  if (n === 3) return "Medium";
+  return "High";
 }
 
 function closeAllDropdowns() {
@@ -34,10 +71,18 @@ function closeAllDropdowns() {
 
 function applyFilters() {
   filteredRows = originalData.rows.filter(row =>
-    Object.entries(activeFilters).every(
-      ([key, value]) => !value || row[key] === value
-    )
+    Object.entries(activeFilters).every(([key, value]) => {
+      if (!value) return true;
+
+      // Special case: severity filter should compare normalized label
+      if (key === "severity") {
+        return normalizeSeverity(row[key]) === value;
+      }
+
+      return row[key] === value;
+    })
   );
+
   renderTable();
 }
 
@@ -61,7 +106,7 @@ function showTooltip(anchorEl, text) {
 
   tooltipEl.textContent = text;
 
-  // Make visible so we can measure size
+  // show for measurement
   tooltipEl.classList.add("show");
   tooltipEl.setAttribute("aria-hidden", "false");
 
@@ -69,33 +114,28 @@ function showTooltip(anchorEl, text) {
   const tipRect = tooltipEl.getBoundingClientRect();
   const pad = 10;
 
-  // Center tooltip under the text like screenshot
+  // Center tooltip horizontally relative to cell
   let left = anchorRect.left + anchorRect.width / 2 - tipRect.width / 2;
   left = Math.max(pad, Math.min(left, window.innerWidth - tipRect.width - pad));
 
+  // Prefer below the cell
   let top = anchorRect.bottom + 10;
 
-  // If would overflow bottom, flip above
+  // Flip above if needed
   if (top + tipRect.height + pad > window.innerHeight) {
     top = anchorRect.top - tipRect.height - 10;
-
-    // move arrow to bottom if flipped
-    tooltipEl.style.setProperty("--arrow-top", "auto");
   }
 
   tooltipEl.style.left = `${left}px`;
   tooltipEl.style.top = `${top}px`;
 
-  // Position arrow to visually point near cell center (clamped)
+  // Arrow points to center of cell (clamped within tooltip)
   const centerX = anchorRect.left + anchorRect.width / 2;
-  const arrowLeft = Math.max(
-    16,
-    Math.min(centerX - left, tipRect.width - 16)
-  );
+  const arrowLeft = Math.max(16, Math.min(centerX - left, tipRect.width - 16));
   tooltipEl.style.setProperty("--arrow-left", `${arrowLeft}px`);
 }
 
-/* Use CSS variables to place arrow precisely */
+/* Ensure tooltip arrow uses the CSS variable */
 (function injectArrowPositionCSS() {
   const style = document.createElement("style");
   style.textContent = `
@@ -140,7 +180,7 @@ function renderTable() {
         const dropdown = document.createElement("div");
         dropdown.className = "filter-dropdown";
 
-        // "Filter by ..." line removed: we do NOT add a header div
+        // "Filter by ..." line removed
 
         const all = document.createElement("div");
         all.className = "filter-option";
@@ -152,37 +192,57 @@ function renderTable() {
         };
         dropdown.appendChild(all);
 
-        getUniqueValues(originalData.rows, col.key).forEach(value => {
-          const opt = document.createElement("div");
-          opt.className = "filter-option";
-          opt.textContent = value;
+        // For severity: show High/Medium/Low unique values (normalized)
+        if (col.key === "severity") {
+          const values = [...new Set(originalData.rows.map(r => normalizeSeverity(r[col.key])))]
+            .filter(Boolean);
 
-          if (activeFilters[col.key] === value) {
-            opt.classList.add("active");
-          }
+          // Keep a nice order if present
+          const ordered = ["High", "Medium", "Low"].filter(v => values.includes(v));
+          const rest = values.filter(v => !ordered.includes(v));
+          [...ordered, ...rest].forEach(value => {
+            const opt = document.createElement("div");
+            opt.className = "filter-option";
+            opt.textContent = value;
 
-          opt.onclick = () => {
-            activeFilters[col.key] = value;
-            closeAllDropdowns();
-            applyFilters();
-          };
+            if (activeFilters[col.key] === value) opt.classList.add("active");
 
-          dropdown.appendChild(opt);
-        });
+            opt.onclick = () => {
+              activeFilters[col.key] = value;
+              closeAllDropdowns();
+              applyFilters();
+            };
+
+            dropdown.appendChild(opt);
+          });
+        } else {
+          getUniqueValues(originalData.rows, col.key).forEach(value => {
+            const opt = document.createElement("div");
+            opt.className = "filter-option";
+            opt.textContent = value;
+
+            if (activeFilters[col.key] === value) {
+              opt.classList.add("active");
+            }
+
+            opt.onclick = () => {
+              activeFilters[col.key] = value;
+              closeAllDropdowns();
+              applyFilters();
+            };
+
+            dropdown.appendChild(opt);
+          });
+        }
 
         document.body.appendChild(dropdown);
 
         // Position dropdown near icon
         const rect = icon.getBoundingClientRect();
         const gap = 8;
-
-        // Temporarily force layout for accurate width
         const ddRect = dropdown.getBoundingClientRect();
 
-        const left = Math.min(
-          rect.left,
-          window.innerWidth - ddRect.width - 10
-        );
+        const left = Math.min(rect.left, window.innerWidth - ddRect.width - 10);
         const top = Math.min(
           rect.bottom + gap,
           window.innerHeight - ddRect.height - 10
@@ -214,13 +274,18 @@ function renderTable() {
       const td = document.createElement("td");
       const value = row[col.key] ?? "";
 
-      if (col.key === "severity" || col.key === "likelihood") {
+      // ✅ Severity colored as High/Medium/Low
+      if (col.key === "severity") {
         td.textContent = String(value);
         td.className = getRiskClass(value);
+      }
+      // Likelihood stays plain
+      else if (col.key === "likelihood") {
+        td.textContent = String(value);
       } else {
         const text = String(value);
 
-        // Truncate if > 6 words, and use custom tooltip like screenshot
+        // Truncate if > 6 words, show custom tooltip
         if (countWords(text) > 6) {
           td.textContent = text;
           td.classList.add("td-truncate");
