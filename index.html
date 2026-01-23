@@ -197,6 +197,44 @@
         border-style: solid;
         border-color: transparent transparent var(--tooltip-bg) transparent;
       }
+      /* Scroll works, but scrollbar is hidden until hover */
+
+      /* Firefox */
+      .table-container {
+        scrollbar-width: none; /* hidden by default */
+      }
+      .table-container:hover {
+        scrollbar-width: thin; /* show on hover */
+        scrollbar-color: rgba(107, 114, 128, 0.75) transparent;
+      }
+      
+      /* Chromium / Safari */
+      .table-container::-webkit-scrollbar {
+        width: 0px;   /* hidden by default */
+        height: 0px;
+      }
+      
+      .table-container:hover::-webkit-scrollbar {
+        width: 10px;  /* show on hover */
+        height: 10px;
+      }
+      
+      .table-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .table-container:hover::-webkit-scrollbar-thumb {
+        background: rgba(107, 114, 128, 0.55);
+        border-radius: 999px;
+        border: 2px solid transparent;      /* gives padding feel */
+        background-clip: content-box;
+      }
+      
+      .table-container:hover::-webkit-scrollbar-thumb:hover {
+        background: rgba(107, 114, 128, 0.75);
+        background-clip: content-box;
+      }
+
     </style>
   </head>
 
