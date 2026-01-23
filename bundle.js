@@ -127,6 +127,65 @@ function showTooltip(anchorEl, text) {
   tooltipEl.style.setProperty("--arrow-left", `${arrowLeft}px`);
 }
 
+/* ───────── Column width logic: ensure header text always fits ───────── */
+function applyMinWidthsFromHeaders(tableEl) {
+  if (!tableEl) return;
+
+  // measure header label widths using a temporary measuring span
+  const thead = tableEl.querySelector("thead");
+  if (!thead) return;
+
+  const ths = Array.from(thead.querySelectorAll("th"));
+  if (!ths.length) return;
+
+  // Create a hidden measurer that matches header font
+  const measurer = document.createElement("span");
+  measurer.style.position = "fixed";
+  measurer.style.left = "-99999px";
+  measurer.style.top = "-99999px";
+  measurer.style.whiteSpace = "nowrap";
+  measurer.style.fontFamily = getComputedStyle(document.body).fontFamily;
+  measurer.style.fontSize = "13px";
+  measurer.style.fontWeight = "600";
+  document.body.appendChild(measurer);
+
+  // compute min width per column
+  const minWidths = ths.map((th, idx) => {
+    // label is either inside .th-label or plain text
+    const labelEl = th.querySelector(".th-label");
+    const labelText = (labelEl ? labelEl.textContent : th.textContent || "").trim();
+
+    measurer.textContent = labelText;
+
+    // padding inside th is 10px left + 10px right.
+    // If it has filter icon, add extra space for icon and gap.
+    const hasFilter = !!th.querySelector(".filter-icon");
+    const basePadding = 20; // left+right padding
+    const iconExtra = hasFilter ? 28 : 0; // icon + gap allowance
+    const safety = 6;
+
+    const measured = Math.ceil(measurer.getBoundingClientRect().width);
+    return measured + basePadding + iconExtra + safety;
+  });
+
+  document.body.removeChild(measurer);
+
+  // Apply min-width to header and each cell in that column
+  ths.forEach((th, colIndex) => {
+    th.style.minWidth = `${minWidths[colIndex]}px`;
+  });
+
+  const bodyRows = Array.from(tableEl.querySelectorAll("tbody tr"));
+  bodyRows.forEach(tr => {
+    const tds = Array.from(tr.children);
+    tds.forEach((td, colIndex) => {
+      if (minWidths[colIndex] != null) {
+        td.style.minWidth = `${minWidths[colIndex]}px`;
+      }
+    });
+  });
+}
+
 /* ───────── Render ───────── */
 function renderTable() {
   const root = document.getElementById("root");
@@ -146,7 +205,6 @@ function renderTable() {
     const th = document.createElement("th");
 
     if (FILTERABLE_COLUMNS[col.key]) {
-      // container that pins icon to far-right edge
       const thContent = document.createElement("div");
       thContent.className = "th-content";
 
@@ -224,16 +282,12 @@ function renderTable() {
 
         document.body.appendChild(dropdown);
 
-        // Position dropdown near icon (far right of header cell now)
         const rect = icon.getBoundingClientRect();
         const gap = 8;
         const ddRect = dropdown.getBoundingClientRect();
 
         const left = Math.min(rect.left, window.innerWidth - ddRect.width - 10);
-        const top = Math.min(
-          rect.bottom + gap,
-          window.innerHeight - ddRect.height - 10
-        );
+        const top = Math.min(rect.bottom + gap, window.innerHeight - ddRect.height - 10);
 
         dropdown.style.left = `${Math.max(10, left)}px`;
         dropdown.style.top = `${Math.max(10, top)}px`;
@@ -290,6 +344,9 @@ function renderTable() {
 
   table.appendChild(tbody);
   root.appendChild(table);
+
+  // ✅ ensure column width fits header text at minimum
+  applyMinWidthsFromHeaders(table);
 }
 
 /* ───────── Init ───────── */
@@ -303,7 +360,11 @@ document.addEventListener("click", () => {
 });
 
 window.addEventListener("scroll", hideTooltip, true);
-window.addEventListener("resize", hideTooltip);
+window.addEventListener("resize", () => {
+  hideTooltip();
+  // re-render to recompute min widths in case fonts/layout changed
+  renderTable();
+});
 
 /* ───────── Agent Payload ───────── */
 window.addEventListener("message", event => {
