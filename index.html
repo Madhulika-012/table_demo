@@ -105,20 +105,24 @@
         color: var(--header-text);
         font-weight: 600;
         z-index: 5;
-        padding: 10px; /* keep */
+
+        /* ✅ important for icon to align to far-right */
+        padding: 0; /* move padding into .th-content */
       }
 
       /* Make header content a flex row: title left, icon pinned right */
       .th-content {
         display: flex;
         align-items: center;
-        justify-content: space-between; /* pushes icon to far right */
-        gap: 10px;
         width: 100%;
+        padding: 10px; /* ✅ moved from th */
+        gap: 10px;
       }
 
+      /* Label expands to fill space, pushing icon to the far right */
       .th-label {
-        min-width: 0; /* allows label to shrink if needed */
+        flex: 1 1 auto;
+        min-width: 0;
       }
 
       /* ───────────── REMOVE ROW HOVER COLOR ───────────── */
@@ -145,7 +149,7 @@
         opacity: 0.9;
         padding: 2px;
         border-radius: 6px;
-        flex: 0 0 auto; /* don't shrink */
+        flex: 0 0 auto;
       }
 
       .filter-icon:hover {
