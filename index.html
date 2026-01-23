@@ -7,15 +7,24 @@
 
     <style>
       :root {
-        /* Header like the screenshot */
-        --header-bg: #e5e7eb;   /* light gray */
-        --header-text: #6b7280; /* gray text/icons */
+        /* Header like screenshot */
+        --header-bg: #e5e7eb;
+        --header-text: #6b7280;
 
         --border: #e5e7eb;
         --text-main: #111827;
 
-        /* row hover */
-        --primary-light: hsl(187 78% 93%);
+        /* zebra rows */
+        --row-even: #ffffff;
+        --row-odd: #f9fafb;
+
+        /* dropdown */
+        --dropdown-border: #d1d5db;
+        --dropdown-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+
+        /* tooltip */
+        --tooltip-bg: #5b5b5b;
+        --tooltip-text: #ffffff;
       }
 
       * {
@@ -41,7 +50,6 @@
 
       /* ───────────── Table ───────────── */
       table {
-        /* dynamic sizing */
         width: max-content;
         min-width: 100%;
         border-collapse: separate;
@@ -73,9 +81,17 @@
         vertical-align: middle;
       }
 
-      /* ───────────── Hover ───────────── */
+      /* ───────────── REMOVE ROW HOVER COLOR ───────────── */
       tr:hover td {
-        background: var(--primary-light);
+        background: inherit;
+      }
+
+      /* ───────────── Zebra rows ───────────── */
+      tbody tr:nth-child(odd) td {
+        background: var(--row-odd);
+      }
+      tbody tr:nth-child(even) td {
+        background: var(--row-even);
       }
 
       /* ───────────── Filter Icon ───────────── */
@@ -88,41 +104,36 @@
         color: var(--header-text);
       }
 
-      /* ───────────── Dropdown (FLOATING, BODY-ATTACHED) ───────────── */
+      /* ───────────── Dropdown ───────────── */
       .filter-dropdown {
         position: fixed;
         background: #ffffff;
-        border: 1px solid var(--header-text);
-        border-radius: 6px;
+        border: 1px solid var(--dropdown-border);
+        border-radius: 10px;
         max-height: 260px;
         overflow-y: auto;
         z-index: 10000;
-        min-width: 220px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+        min-width: 260px;
+        box-shadow: var(--dropdown-shadow);
       }
 
-      .filter-dropdown-header {
-        padding: 8px 10px;
-        font-weight: 600;
-        font-size: 12px;
-        background: var(--header-bg);
-        color: var(--header-text);
-        border-bottom: 1px solid var(--border);
-      }
+      /* remove "Filter by ..." line entirely by not styling it; JS won't create it */
 
       .filter-option {
-        padding: 8px 10px;
+        padding: 10px 14px;
         cursor: pointer;
         background: #ffffff;
         color: #111827;
+        font-size: 14px;
+        line-height: 1.2;
       }
 
+      /* remove hover color in dropdown */
       .filter-option:hover {
-        background: var(--primary-light);
+        background: #ffffff;
       }
 
       .filter-option.active {
-        background: var(--primary-light);
         font-weight: 700;
       }
 
@@ -131,7 +142,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 320px; /* adjust to taste */
+        max-width: 360px; /* tweak as needed */
       }
 
       /* ───────────── FULL CELL RISK COLORS ───────────── */
@@ -152,6 +163,40 @@
         color: #991b1b;
         font-weight: 600;
       }
+
+      /* ───────────── Custom tooltip like screenshot ───────────── */
+      .custom-tooltip {
+        position: fixed;
+        max-width: 520px;
+        background: var(--tooltip-bg);
+        color: var(--tooltip-text);
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.35;
+        z-index: 20000;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 120ms ease, transform 120ms ease;
+      }
+
+      .custom-tooltip.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .custom-tooltip::after {
+        content: "";
+        position: absolute;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 0 8px 8px 8px;
+        border-style: solid;
+        border-color: transparent transparent var(--tooltip-bg) transparent;
+      }
     </style>
   </head>
 
@@ -159,6 +204,9 @@
     <div class="table-container">
       <div id="root"></div>
     </div>
+
+    <!-- custom tooltip node -->
+    <div id="tooltip" class="custom-tooltip" aria-hidden="true"></div>
 
     <!-- JS bundle that receives ui_component_render -->
     <script src="bundle.js"></script>
