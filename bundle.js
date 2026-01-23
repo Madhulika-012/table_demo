@@ -103,24 +103,18 @@ function showTooltip(anchorEl, text) {
 
   tooltipEl.textContent = text;
 
-  // show for measurement
   tooltipEl.classList.add("show");
   tooltipEl.setAttribute("aria-hidden", "false");
 
   const anchorRect = anchorEl.getBoundingClientRect();
-
-  // Measure after visible
   const tipRect = tooltipEl.getBoundingClientRect();
   const pad = 10;
 
-  // Center tooltip horizontally relative to cell
   let left = anchorRect.left + anchorRect.width / 2 - tipRect.width / 2;
   left = Math.max(pad, Math.min(left, window.innerWidth - tipRect.width - pad));
 
-  // Prefer below the cell
   let top = anchorRect.bottom + 10;
 
-  // Flip above if needed
   if (top + tipRect.height + pad > window.innerHeight) {
     top = anchorRect.top - tipRect.height - 10;
   }
@@ -128,7 +122,6 @@ function showTooltip(anchorEl, text) {
   tooltipEl.style.left = `${left}px`;
   tooltipEl.style.top = `${top}px`;
 
-  // Arrow points to center of cell (clamped within tooltip)
   const centerX = anchorRect.left + anchorRect.width / 2;
   const arrowLeft = Math.max(16, Math.min(centerX - left, tipRect.width - 16));
   tooltipEl.style.setProperty("--arrow-left", `${arrowLeft}px`);
@@ -153,7 +146,12 @@ function renderTable() {
     const th = document.createElement("th");
 
     if (FILTERABLE_COLUMNS[col.key]) {
+      // container that pins icon to far-right edge
+      const thContent = document.createElement("div");
+      thContent.className = "th-content";
+
       const label = document.createElement("span");
+      label.className = "th-label";
       label.textContent = col.label;
 
       const icon = document.createElement("span");
@@ -173,8 +171,6 @@ function renderTable() {
         const dropdown = document.createElement("div");
         dropdown.className = "filter-dropdown";
 
-        // "Filter by ..." line removed
-
         const all = document.createElement("div");
         all.className = "filter-option";
         all.textContent = "All";
@@ -185,13 +181,14 @@ function renderTable() {
         };
         dropdown.appendChild(all);
 
-        // Severity filter shows normalized High/Medium/Low
         if (col.key === "severity") {
-          const values = [...new Set(originalData.rows.map(r => normalizeSeverity(r[col.key])))]
-            .filter(Boolean);
+          const values = [
+            ...new Set(originalData.rows.map(r => normalizeSeverity(r[col.key])))
+          ].filter(Boolean);
 
           const ordered = ["High", "Medium", "Low"].filter(v => values.includes(v));
           const rest = values.filter(v => !ordered.includes(v));
+
           [...ordered, ...rest].forEach(value => {
             const opt = document.createElement("div");
             opt.className = "filter-option";
@@ -227,7 +224,7 @@ function renderTable() {
 
         document.body.appendChild(dropdown);
 
-        // Position dropdown near icon
+        // Position dropdown near icon (far right of header cell now)
         const rect = icon.getBoundingClientRect();
         const gap = 8;
         const ddRect = dropdown.getBoundingClientRect();
@@ -242,8 +239,9 @@ function renderTable() {
         dropdown.style.top = `${Math.max(10, top)}px`;
       };
 
-      th.appendChild(label);
-      th.appendChild(icon);
+      thContent.appendChild(label);
+      thContent.appendChild(icon);
+      th.appendChild(thContent);
     } else {
       th.textContent = col.label;
     }
@@ -264,18 +262,14 @@ function renderTable() {
       const td = document.createElement("td");
       const value = row[col.key] ?? "";
 
-      // Severity colored High/Medium/Low
       if (col.key === "severity") {
         td.textContent = String(value);
         td.className = getRiskClass(value);
-      }
-      // Likelihood stays plain
-      else if (col.key === "likelihood") {
+      } else if (col.key === "likelihood") {
         td.textContent = String(value);
       } else {
         const text = String(value);
 
-        // Truncate if > 6 words, show custom tooltip
         if (countWords(text) > 6) {
           td.textContent = text;
           td.classList.add("td-truncate");
