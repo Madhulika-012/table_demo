@@ -106,20 +106,25 @@
         font-weight: 600;
         z-index: 5;
 
-        /* ✅ important for icon to align to far-right */
-        padding: 0; /* move padding into .th-content */
+        /* ✅ default padding for ALL headers */
+        padding: 10px;
       }
 
-      /* Make header content a flex row: title left, icon pinned right */
+      /* Only filter headers have .th-content wrapper:
+         - cancels the th padding via negative margin
+         - re-applies padding inside the wrapper
+         - allows icon to be pinned to far-right corner
+      */
       .th-content {
         display: flex;
         align-items: center;
         width: 100%;
-        padding: 10px; /* ✅ moved from th */
         gap: 10px;
+
+        margin: -10px; /* cancels th padding */
+        padding: 10px; /* re-add padding inside wrapper */
       }
 
-      /* Label expands to fill space, pushing icon to the far right */
       .th-label {
         flex: 1 1 auto;
         min-width: 0;
@@ -201,19 +206,19 @@
 
       /* ───────────── FULL CELL RISK COLORS (severity) ───────────── */
       .td-risk-low {
-        background: #ecfdf5 !important;
+        background: #ecfdf5 !important; /* green */
         color: #065f46;
         font-weight: 600;
       }
 
       .td-risk-medium {
-        background: #fffbeb !important;
+        background: #fffbeb !important; /* amber */
         color: #92400e;
         font-weight: 600;
       }
 
       .td-risk-high {
-        background: #fef2f2 !important;
+        background: #fef2f2 !important; /* red */
         color: #991b1b;
         font-weight: 600;
       }
