@@ -44,11 +44,9 @@ function getRiskClass(value = "") {
 }
 
 /**
- * Normalize severity value for filtering so that:
- * - "High"/"high" => "High"
- * - "Medium"/"medium" => "Medium"
- * - "Low"/"low" => "Low"
- * - numeric 1–2 => "Low", 3 => "Medium", 4–5 => "High"
+ * Normalize severity for filtering:
+ * - "High/Medium/Low" -> Title Case
+ * - numeric 1–2 => Low, 3 => Medium, 4–5 => High
  */
 function normalizeSeverity(value = "") {
   const v = String(value ?? "").trim().toLowerCase();
@@ -74,7 +72,6 @@ function applyFilters() {
     Object.entries(activeFilters).every(([key, value]) => {
       if (!value) return true;
 
-      // Special case: severity filter should compare normalized label
       if (key === "severity") {
         return normalizeSeverity(row[key]) === value;
       }
@@ -111,6 +108,8 @@ function showTooltip(anchorEl, text) {
   tooltipEl.setAttribute("aria-hidden", "false");
 
   const anchorRect = anchorEl.getBoundingClientRect();
+
+  // Measure after visible
   const tipRect = tooltipEl.getBoundingClientRect();
   const pad = 10;
 
@@ -135,18 +134,6 @@ function showTooltip(anchorEl, text) {
   tooltipEl.style.setProperty("--arrow-left", `${arrowLeft}px`);
 }
 
-/* Ensure tooltip arrow uses the CSS variable */
-(function injectArrowPositionCSS() {
-  const style = document.createElement("style");
-  style.textContent = `
-    .custom-tooltip::after{
-      left: var(--arrow-left, 50%) !important;
-      transform: translateX(-50%);
-    }
-  `;
-  document.head.appendChild(style);
-})();
-
 /* ───────── Render ───────── */
 function renderTable() {
   const root = document.getElementById("root");
@@ -170,8 +157,14 @@ function renderTable() {
       label.textContent = col.label;
 
       const icon = document.createElement("span");
-      icon.textContent = "▾";
       icon.className = "filter-icon";
+      icon.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M3 6h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M7 12h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M10 18h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      `;
 
       icon.onclick = e => {
         e.stopPropagation();
@@ -192,12 +185,11 @@ function renderTable() {
         };
         dropdown.appendChild(all);
 
-        // For severity: show High/Medium/Low unique values (normalized)
+        // Severity filter shows normalized High/Medium/Low
         if (col.key === "severity") {
           const values = [...new Set(originalData.rows.map(r => normalizeSeverity(r[col.key])))]
             .filter(Boolean);
 
-          // Keep a nice order if present
           const ordered = ["High", "Medium", "Low"].filter(v => values.includes(v));
           const rest = values.filter(v => !ordered.includes(v));
           [...ordered, ...rest].forEach(value => {
@@ -221,9 +213,7 @@ function renderTable() {
             opt.className = "filter-option";
             opt.textContent = value;
 
-            if (activeFilters[col.key] === value) {
-              opt.classList.add("active");
-            }
+            if (activeFilters[col.key] === value) opt.classList.add("active");
 
             opt.onclick = () => {
               activeFilters[col.key] = value;
@@ -274,7 +264,7 @@ function renderTable() {
       const td = document.createElement("td");
       const value = row[col.key] ?? "";
 
-      // ✅ Severity colored as High/Medium/Low
+      // Severity colored High/Medium/Low
       if (col.key === "severity") {
         td.textContent = String(value);
         td.className = getRiskClass(value);
